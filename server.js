@@ -17,6 +17,13 @@ import { getDaily } from "./openMeteo.js";
 import { toDays } from "./public/logic.js";
 
 const PORT = process.env.PORT ?? 3000;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+
+// 토큰이 없으면 "Bearer undefined" 가 통과해 버리므로 켜지 않고 멈춤.
+if (!ADMIN_TOKEN) {
+  console.error("ADMIN_TOKEN is not set. Copy .env.example to .env.");
+  process.exit(1);
+}
 
 // 위도·경도는 이제 서버만 앎.
 const CITIES = {
@@ -24,6 +31,9 @@ const CITIES = {
   daejeon: { name: "Daejeon", lat: 36.3504, lon: 127.3845 },
   gangneung: { name: "Gangneung", lat: 37.7519, lon: 128.8761 },
 };
+
+// 도시 키별 요청 횟수. 메모리에만 있어서 서버를 끄면 사라짐.
+const counts = {};
 
 const app = express();
 
@@ -40,6 +50,8 @@ app.get("/api/forecast", async (req, res) => {
   if (!Object.hasOwn(CITIES, key)) {
     return res.status(400).json({ error: `Unknown city: ${key}` });
   }
+  // 아는 도시로 확인된 직후, Open-Meteo 를 부르기 전에 셈(502 도 셈).
+  counts[key] = (counts[key] ?? 0) + 1;
   const city = CITIES[key];
   try {
     const daily = await getDaily(city);
@@ -47,6 +59,13 @@ app.get("/api/forecast", async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+});
+
+app.get("/api/stats", (req, res) => {
+  if (req.get("Authorization") !== `Bearer ${ADMIN_TOKEN}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  res.json(counts);
 });
 
 app.listen(PORT, (error) => {
