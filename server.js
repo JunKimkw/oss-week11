@@ -11,3 +11,22 @@
 // 이 파일은 public/ 밖에 있습니다. 브라우저 주소창으로는 열리지 않습니다(P4 에서 확인).
 
 // P4 부터 여기 아래에 씁니다.
+
+import express from "express";
+
+const PORT = process.env.PORT ?? 3000;
+
+const app = express();
+
+// public/ 폴더의 파일만 내보냄. 이 파일(server.js)은 주소로 열리지 않음.
+app.use(express.static("public"));
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.listen(PORT, (error) => {
+  // Express 5 는 포트를 못 잡아도 콜백을 부르므로 error 를 직접 확인함.
+  if (error) throw error;
+  console.log(`Listening on http://localhost:${PORT}`);
+});
